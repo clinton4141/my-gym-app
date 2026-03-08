@@ -15,15 +15,14 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.clinton41.mygymapp",
+      "googleServicesFile": "./android/app/google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "googleServicesFile": "./android/app/google-services.json",
-      "useNextNotificationsApi": true,
-      "package": "com.clinton41.mygymapp"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -35,6 +34,7 @@
     }
   }
 }
+
 
 
 
