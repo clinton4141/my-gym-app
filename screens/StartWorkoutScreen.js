@@ -1,395 +1,744 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView
-} from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Picker } from '@react-native-picker/picker';
+  ScrollView,
+  Animated,
+  Easing,
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import useThemeColors from "../hooks/useThemeColors";
 
-export default function StartWorkoutScreen({ navigation }) {
-  const [duration, setDuration] = useState(30);
-  const [focus, setFocus] = useState('Full Body');
-  const [intensity, setIntensity] = useState('Medium');
-  const [equipmentKeywords, setEquipmentKeywords] = useState([]);
+export default function StartWorkoutScreen() {
+  const navigation = useNavigation();
+  const colors = useThemeColors();
 
-  useEffect(() => {
-    const loadEquipment = async () => {
-      const stored = await AsyncStorage.getItem('equipment');
-      const parsed = stored ? JSON.parse(stored) : [];
-      const keywords = parsed.map(item => (item.name || '').toLowerCase());
-      setEquipmentKeywords(keywords);
-    };
+  const [mode, setMode] = useState("automatic");
 
-    loadEquipment();
-  }, []);
+  const [equipmentOpen, setEquipmentOpen] = useState(false);
+  const [exerciseOpen, setExerciseOpen] = useState(false);
+  const [warmupOpen, setWarmupOpen] = useState(false);
+  const [cooldownOpen, setCooldownOpen] = useState(false);
+  const [restOpen, setRestOpen] = useState(false);
+  const [dayOpen, setDayOpen] = useState(false);
 
-  const equipmentAI = {
-  "Push Ups": {
-    name: "Bodyweight",
-    bodyPart: "Chest",
-    type: "Bodyweight",
-    description: "A basic push movement using your own body weight.",
-    video: "https://www.youtube.com/watch?v=_l3ySVKYVJ8"
-  },
-  "Squats": {
-    name: "Bodyweight",
-    bodyPart: "Legs",
-    type: "Bodyweight",
-    description: "Lower body movement targeting quads and glutes.",
-    video: "https://www.youtube.com/watch?v=aclHkVaku9U"
-  },
-  "Lunges": {
-    name: "Bodyweight",
-    bodyPart: "Legs",
-    type: "Bodyweight",
-    description: "Targets quads, glutes, and balance.",
-    video: "https://www.youtube.com/watch?v=QOVaa3sYkqE"
-  },
-  "Plank": {
-    name: "Bodyweight",
-    bodyPart: "Core",
-    type: "Bodyweight",
-    description: "Core stability exercise.",
-    video: "https://www.youtube.com/watch?v=pSHjTRCQxIw"
-  },
-  "Burpees": {
-    name: "Bodyweight",
-    bodyPart: "Full Body",
-    type: "Bodyweight",
-    description: "Explosive full-body conditioning movement.",
-    video: "https://www.youtube.com/watch?v=TU8QYVW0gDU"
-  },
-  "Mountain Climbers": {
-    name: "Bodyweight",
-    bodyPart: "Core",
-    type: "Bodyweight",
-    description: "Dynamic core and cardio movement.",
-    video: "https://www.youtube.com/watch?v=nmwgirgXLYM"
-  },
-  "Jumping Jacks": {
-    name: "Bodyweight",
-    bodyPart: "Full Body",
-    type: "Bodyweight",
-    description: "Warm-up and cardio movement.",
-    video: "https://www.youtube.com/watch?v=c4DAnQ6DtF8"
-  },
-  "Shoulder Press": {
-    name: "Dumbbells",
-    bodyPart: "Shoulders",
-    type: "Free Weight",
-    description: "Overhead pressing movement using dumbbells.",
-    video: "https://www.youtube.com/watch?v=B-aVuyhvLHU"
-  },
-  "Bicep Curls": {
-    name: "Dumbbells",
-    bodyPart: "Arms",
-    type: "Free Weight",
-    description: "Curling movement targeting the biceps.",
-    video: "https://www.youtube.com/watch?v=ykJmrZ5v0Oo"
-  },
-  "Rows": {
-    name: "Dumbbells",
-    bodyPart: "Back",
-    type: "Free Weight",
-    description: "Pulling movement targeting the back.",
-    video: "https://www.youtube.com/watch?v=pYcpY20QaE8"
-  },
-  "Chest Press": {
-    name: "Bench + Dumbbells",
-    bodyPart: "Chest",
-    type: "Machine/Free Weight",
-    description: "Pressing movement for chest strength.",
-    video: "https://www.youtube.com/watch?v=VmB1G1K7v94"
-  },
-  "Leg Raises": {
-    name: "Bodyweight",
-    bodyPart: "Core",
-    type: "Bodyweight",
-    description: "Lower ab isolation movement.",
-    video: "https://www.youtube.com/watch?v=JB2oyawG9KI"
-  },
-  "Russian Twists": {
-    name: "Bodyweight",
-    bodyPart: "Core",
-    type: "Bodyweight",
-    description: "Rotational core exercise.",
-    video: "https://www.youtube.com/watch?v=wkD8rjkodUI"
-  }
-};
+  const equipmentAnim = useRef(new Animated.Value(0)).current;
+  const exerciseAnim = useRef(new Animated.Value(0)).current;
+  const warmupAnim = useRef(new Animated.Value(0)).current;
+  const cooldownAnim = useRef(new Animated.Value(0)).current;
+  const restAnim = useRef(new Animated.Value(0)).current;
+  const dayAnim = useRef(new Animated.Value(0)).current;
 
- const generateWorkout = async () => {
-  // -----------------------------
-  // 1. MASTER EXERCISE DATABASE
-  // -----------------------------
-  const db = [
-    { name: "Push Ups", body: "Chest", type: "Bodyweight", equipment: "Bodyweight" },
-    { name: "Shoulder Press", body: "Shoulders", type: "Free Weight", equipment: "Dumbbells" },
-    { name: "Bicep Curls", body: "Arms", type: "Free Weight", equipment: "Dumbbells" },
-    { name: "Rows", body: "Back", type: "Free Weight", equipment: "Dumbbells" },
-    { name: "Chest Press", body: "Chest", type: "Free Weight", equipment: "Bench + Dumbbells" },
-    { name: "Squats", body: "Legs", type: "Bodyweight", equipment: "Bodyweight" },
-    { name: "Lunges", body: "Legs", type: "Bodyweight", equipment: "Bodyweight" },
-    { name: "Plank", body: "Core", type: "Bodyweight", equipment: "Bodyweight" },
-    { name: "Leg Raises", body: "Core", type: "Bodyweight", equipment: "Bodyweight" },
-    { name: "Russian Twists", body: "Core", type: "Bodyweight", equipment: "Bodyweight" },
-    { name: "Mountain Climbers", body: "Core", type: "Bodyweight", equipment: "Bodyweight" },
-    { name: "Jumping Jacks", body: "Full Body", type: "Bodyweight", equipment: "Bodyweight" },
-    { name: "Burpees", body: "Full Body", type: "Bodyweight", equipment: "Bodyweight" }
-  ];
-
-  // -----------------------------
-  // 2. LOAD USER EQUIPMENT
-  // -----------------------------
-  const stored = await AsyncStorage.getItem("equipment");
-  const owned = stored ? JSON.parse(stored).map(e => e.name.toLowerCase()) : [];
-
-  // -----------------------------
-  // 3. FILTER BY FOCUS
-  // -----------------------------
-  const focusMap = {
-    "Full Body": ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core"],
-    "Upper Body": ["Chest", "Back", "Shoulders", "Arms"],
-    "Lower Body": ["Legs"],
-    "Push": ["Chest", "Shoulders", "Arms"],
-    "Pull": ["Back", "Arms"],
-    "Core": ["Core"]
+  const animateDropdown = (anim, open) => {
+    Animated.timing(anim, {
+      toValue: open ? 1 : 0,
+      duration: 220,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: false,
+    }).start();
   };
 
-  const allowedBodies = focusMap[focus];
+  const [selectedEquipment, setSelectedEquipment] = useState([]);
+  const [selectedExercises, setSelectedExercises] = useState([]);
+  const [exerciseDetails, setExerciseDetails] = useState({});
 
-  let filtered = db.filter(ex => allowedBodies.includes(ex.body));
+  const warmupOptions = ["None", "3 Minutes", "5 Minutes", "Stretching"];
+  const cooldownOptions = ["None", "3 Minutes", "5 Minutes", "Stretching"];
 
-  // -----------------------------
-  // 4. EQUIPMENT-AWARE FILTERING
-  // -----------------------------
-  filtered = filtered.filter(ex => {
-    if (ex.equipment === "Bodyweight") return true;
-    return owned.includes(ex.equipment.toLowerCase());
-  });
+  const [selectedWarmup, setSelectedWarmup] = useState("None");
+  const [selectedCooldown, setSelectedCooldown] = useState("None");
 
-  // Fallback if user has no equipment
-  if (filtered.length < 5) {
-    filtered = db.filter(ex => ex.equipment === "Bodyweight");
-  }
+  const restOptions = ["30 Seconds", "45 Seconds", "60 Seconds", "90 Seconds"];
+  const [selectedRest, setSelectedRest] = useState("60 Seconds");
 
-  // -----------------------------
-  // 5. CLEAN EXERCISE COUNT FORMULA
-  // -----------------------------
-  let exerciseCount = Math.max(5, Math.floor(duration / 10) + 4);
+  const dayOptions = [
+    "Today",
+    "Tomorrow",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ];
+  const [selectedDay, setSelectedDay] = useState("Today");
 
-  // -----------------------------
-  // 6. BALANCED BODY PART SELECTION
-  // -----------------------------
-  const byBody = {};
-  filtered.forEach(ex => {
-    if (!byBody[ex.body]) byBody[ex.body] = [];
-    byBody[ex.body].push(ex);
-  });
+  const equipmentList = ["Dumbbells", "Barbell", "Bench", "Bodyweight"];
 
-  const chosen = [];
-  const bodyParts = Object.keys(byBody);
+  const exerciseList = [
+    { name: "Push Ups", equipment: "Bodyweight" },
+    { name: "Squats", equipment: "Bodyweight" },
+    { name: "Bench Press", equipment: "Barbell" },
+    { name: "Deadlift", equipment: "Barbell" },
+    { name: "Shoulder Press", equipment: "Dumbbells" },
+  ];
 
-  while (chosen.length < exerciseCount) {
-    for (let part of bodyParts) {
-      if (chosen.length >= exerciseCount) break;
-      const list = byBody[part];
-      if (list && list.length > 0) {
-        const pick = list[Math.floor(Math.random() * list.length)];
-        if (!chosen.find(c => c.name === pick.name)) {
-          chosen.push(pick);
-        }
+  const filteredExercises =
+    selectedEquipment.length === 0
+      ? exerciseList
+      : exerciseList.filter((ex) =>
+          selectedEquipment.includes(ex.equipment)
+        );
+
+  const toggleEquipment = (item) => {
+    setSelectedEquipment((prev) =>
+      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
+    );
+  };
+
+  const toggleExercise = (item) => {
+    setSelectedExercises((prev) => {
+      const updated = prev.includes(item)
+        ? prev.filter((i) => i !== item)
+        : [...prev, item];
+
+      if (!exerciseDetails[item]) {
+        setExerciseDetails((d) => ({
+          ...d,
+          [item]: { sets: 3, reps: 10 },
+        }));
       }
-    }
-  }
 
-  // -----------------------------
-  // 7. INTENSITY SETTINGS
-  // -----------------------------
-  const intensitySettings = {
-    Easy:   { sets: 2, reps: 10, kgMin: 0,  kgMax: 5,  rest: 30 },
-    Medium: { sets: 3, reps: 12, kgMin: 5,  kgMax: 15, rest: 20 },
-    Hard:   { sets: 4, reps: 15, kgMin: 10, kgMax: 25, rest: 15 }
+      return updated;
+    });
   };
 
-  const settings = intensitySettings[intensity];
+  const adjustValue = (exercise, field, amount) => {
+    setExerciseDetails((prev) => ({
+      ...prev,
+      [exercise]: {
+        ...prev[exercise],
+        [field]: Math.max(1, prev[exercise][field] + amount),
+      },
+    }));
+  };
 
-  // -----------------------------
-  // 8. WARM-UP + COOL-DOWN
-  // -----------------------------
-  const warmup = [
-    { name: "Jumping Jacks", body: "Full Body" },
-    { name: "Mountain Climbers", body: "Core" }
-  ];
+  const generateAutomaticWorkout = () => {
+    const shuffled = [...exerciseList].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, 5);
 
-  const cooldown = [
-    { name: "Plank", body: "Core" }
-  ];
-
-  // -----------------------------
-  // 9. BUILD FINAL PLAN
-  // -----------------------------
-  const plan = [];
-
-  // Warm-up (optional)
-  plan.push({
-    name: warmup[Math.floor(Math.random() * warmup.length)].name,
-    sets: 1,
-    reps: 20,
-    kg: 0,
-    rest: 10
-  });
-
-  // Main workout
-  chosen.forEach(ex => {
-    plan.push({
+    const autoExercises = selected.map((ex) => ({
       name: ex.name,
-      sets: settings.sets,
-      reps: settings.reps,
-      kg: Math.floor(Math.random() * (settings.kgMax - settings.kgMin + 1)) + settings.kgMin,
-      rest: settings.rest
+      sets: 3,
+      reps: 12,
+    }));
+
+    navigation.navigate("WorkoutPreview", {
+      mode: "automatic",
+      equipment: ["Auto"],
+      warmup: "None",
+      cooldown: "None",
+      restTime: "60 Seconds",
+      scheduledDay: "Today",
+      exercises: autoExercises,
     });
-  });
+  };
 
-  // Cool-down
-  plan.push({
-    name: cooldown[0].name,
-    sets: 1,
-    reps: 30,
-    kg: 0,
-    rest: 10
-  });
+  const renderDropdown = (anim, open, items) => {
+    const height = anim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, items.length * 45],
+    });
 
-  // -----------------------------
-  // 10. AUTO-SAVE EQUIPMENT
-  // -----------------------------
-  const autoEquipment = [];
-  plan.forEach(ex => {
-    if (equipmentAI[ex.name]) autoEquipment.push(equipmentAI[ex.name]);
-  });
+    const opacity = anim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 1],
+    });
 
-  await AsyncStorage.setItem("equipment", JSON.stringify(autoEquipment));
-
-  // -----------------------------
-  // 11. NAVIGATE
-  // -----------------------------
-  navigation.navigate("WorkoutOverview", { workout: plan });
-};
-
+    return (
+      <Animated.View style={{ height, opacity, overflow: "visible" }}>
+        {items}
+      </Animated.View>
+    );
+  };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Generate Workout</Text>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.bg }]}
+      contentContainerStyle={{ paddingBottom: 250 }}
+    >
+      <Text style={[styles.header, { color: colors.text }]}>Start Workout</Text>
 
-      {/* Duration Dropdown */}
-      <Text style={styles.label}>Duration</Text>
-      <View style={styles.dropdown}>
-        <Picker
-          selectedValue={duration}
-          dropdownIconColor="white"
-          style={styles.picker}
-          onValueChange={(value) => setDuration(value)}
+      {/* MODE TOGGLE */}
+      <View style={styles.toggleContainer}>
+        <Text
+          style={[
+            styles.toggleLabel,
+            { color: mode === "automatic" ? colors.accent : colors.subtext },
+          ]}
         >
-          <Picker.Item label="15 minutes" value={15} />
-          <Picker.Item label="30 minutes" value={30} />
-          <Picker.Item label="45 minutes" value={45} />
-          <Picker.Item label="60 minutes" value={60} />
-        </Picker>
-      </View>
-
-      {/* Focus Dropdown */}
-      <Text style={styles.label}>Focus</Text>
-      <View style={styles.dropdown}>
-        <Picker
-          selectedValue={focus}
-          dropdownIconColor="white"
-          style={styles.picker}
-          onValueChange={(value) => setFocus(value)}
-        >
-          <Picker.Item label="Full Body" value="Full Body" />
-          <Picker.Item label="Upper Body" value="Upper Body" />
-          <Picker.Item label="Lower Body" value="Lower Body" />
-          <Picker.Item label="Push" value="Push" />
-          <Picker.Item label="Pull" value="Pull" />
-          <Picker.Item label="Core" value="Core" />
-        </Picker>
-      </View>
-
-      {/* Intensity Dropdown */}
-      <Text style={styles.label}>Intensity</Text>
-      <View style={styles.dropdown}>
-        <Picker
-          selectedValue={intensity}
-          dropdownIconColor="white"
-          style={styles.picker}
-          onValueChange={(value) => setIntensity(value)}
-        >
-          <Picker.Item label="Easy" value="Easy" />
-          <Picker.Item label="Medium" value="Medium" />
-          <Picker.Item label="Hard" value="Hard" />
-        </Picker>
-      </View>
-
-      <TouchableOpacity style={styles.generateButton} onPress={generateWorkout}>
-        <Text style={styles.generateText}>Generate Workout</Text>
-      </TouchableOpacity>
-
-      <ScrollView style={styles.result}>
-        <Text style={{ color: '#aaa', textAlign: 'center' }}>
-          Your workout will appear on the next screen.
+          Automatic
         </Text>
-      </ScrollView>
-    </View>
+
+        <TouchableOpacity
+          style={[styles.toggleSwitch, { backgroundColor: colors.card }]}
+          onPress={() => setMode(mode === "automatic" ? "manual" : "automatic")}
+        >
+          <View
+            style={[
+              styles.toggleCircle,
+              {
+                marginLeft: mode === "manual" ? 28 : 0,
+                backgroundColor: colors.accent,
+              },
+            ]}
+          />
+        </TouchableOpacity>
+
+        <Text
+          style={[
+            styles.toggleLabel,
+            { color: mode === "manual" ? colors.accent : colors.subtext },
+          ]}
+        >
+          Manual
+        </Text>
+      </View>
+
+      {/* AUTOMATIC MODE */}
+      {mode === "automatic" && (
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Automatic Mode
+          </Text>
+          <Text style={[styles.placeholder, { color: colors.subtext }]}>
+            Tap below to generate a workout automatically.
+          </Text>
+
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: colors.accent }]}
+            onPress={generateAutomaticWorkout}
+          >
+            <Text style={[styles.buttonText, { color: colors.text }]}>
+              Generate Workout
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* MANUAL MODE */}
+      {mode === "manual" && (
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Manual Mode
+          </Text>
+
+          {/* EQUIPMENT */}
+          <TouchableOpacity
+            style={[
+              styles.dropdownHeader,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            onPress={() => {
+              setEquipmentOpen(!equipmentOpen);
+              animateDropdown(equipmentAnim, !equipmentOpen);
+            }}
+          >
+            <Text
+              style={[styles.dropdownHeaderText, { color: colors.text }]}
+            >
+              Equipment
+            </Text>
+          </TouchableOpacity>
+
+          {renderDropdown(
+            equipmentAnim,
+            equipmentOpen,
+            equipmentList.map((item, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.dropdownItem}
+                onPress={() => toggleEquipment(item)}
+              >
+                <Text
+                  style={[styles.dropdownItemText, { color: colors.text }]}
+                >
+                  {selectedEquipment.includes(item) ? "✓ " : "○ "}
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
+
+          {/* EXERCISES */}
+          <TouchableOpacity
+            style={[
+              styles.dropdownHeader,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            onPress={() => {
+              setExerciseOpen(!exerciseOpen);
+              animateDropdown(exerciseAnim, !exerciseOpen);
+            }}
+          >
+            <Text
+              style={[styles.dropdownHeaderText, { color: colors.text }]}
+            >
+              Exercises
+            </Text>
+          </TouchableOpacity>
+
+          {renderDropdown(
+            exerciseAnim,
+            exerciseOpen,
+            filteredExercises.map((item, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.dropdownItem}
+                onPress={() => toggleExercise(item.name)}
+              >
+                <Text
+                  style={[styles.dropdownItemText, { color: colors.text }]}
+                >
+                  {selectedExercises.includes(item.name) ? "✓ " : "○ "}
+                  {item.name}
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
+
+          {/* SETS & REPS */}
+          {selectedExercises.length > 0 && (
+            <View style={{ marginTop: 20 }}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Sets & Reps
+              </Text>
+
+              {selectedExercises.map((exercise, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.setsRepsRow,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[styles.exerciseName, { color: colors.text }]}
+                  >
+                    {exercise}
+                  </Text>
+
+                  <View style={styles.counterGroup}>
+                    <Text
+                      style={[styles.counterLabel, { color: colors.subtext }]}
+                    >
+                      Sets
+                    </Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.counterButton,
+                        { backgroundColor: colors.border },
+                      ]}
+                      onPress={() => adjustValue(exercise, "sets", -1)}
+                    >
+                      <Text
+                        style={[
+                          styles.counterButtonText,
+                          { color: colors.text },
+                        ]}
+                      >
+                        -
+                      </Text>
+                    </TouchableOpacity>
+                    <Text
+                      style={[
+                        styles.counterValue,
+                        { color: colors.text },
+                      ]}
+                    >
+                      {exerciseDetails[exercise]?.sets}
+                    </Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.counterButton,
+                        { backgroundColor: colors.border },
+                      ]}
+                      onPress={() => adjustValue(exercise, "sets", 1)}
+                    >
+                      <Text
+                        style={[
+                          styles.counterButtonText,
+                          { color: colors.text },
+                        ]}
+                      >
+                        +
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.counterGroup}>
+                    <Text
+                      style={[styles.counterLabel, { color: colors.subtext }]}
+                    >
+                      Reps
+                    </Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.counterButton,
+                        { backgroundColor: colors.border },
+                      ]}
+                      onPress={() => adjustValue(exercise, "reps", -1)}
+                    >
+                      <Text
+                        style={[
+                          styles.counterButtonText,
+                          { color: colors.text },
+                        ]}
+                      >
+                        -
+                      </Text>
+                    </TouchableOpacity>
+                    <Text
+                      style={[
+                        styles.counterValue,
+                        { color: colors.text },
+                      ]}
+                    >
+                      {exerciseDetails[exercise]?.reps}
+                    </Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.counterButton,
+                        { backgroundColor: colors.border },
+                      ]}
+                      onPress={() => adjustValue(exercise, "reps", 1)}
+                    >
+                      <Text
+                        style={[
+                          styles.counterButtonText,
+                          { color: colors.text },
+                        ]}
+                      >
+                        +
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* WARM-UP */}
+          <TouchableOpacity
+            style={[
+              styles.dropdownHeader,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            onPress={() => {
+              setWarmupOpen(!warmupOpen);
+              animateDropdown(warmupAnim, !warmupOpen);
+            }}
+          >
+            <Text
+              style={[styles.dropdownHeaderText, { color: colors.text }]}
+            >
+              Warm-up: {selectedWarmup}
+            </Text>
+          </TouchableOpacity>
+
+          {renderDropdown(
+            warmupAnim,
+            warmupOpen,
+            warmupOptions.map((item, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.dropdownItem}
+                onPress={() => {
+                  setSelectedWarmup(item);
+                  setWarmupOpen(false);
+                  animateDropdown(warmupAnim, false);
+                }}
+              >
+                <Text
+                  style={[styles.dropdownItemText, { color: colors.text }]}
+                >
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
+
+          {/* COOLDOWN */}
+          <TouchableOpacity
+            style={[
+              styles.dropdownHeader,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            onPress={() => {
+              setCooldownOpen(!cooldownOpen);
+              animateDropdown(cooldownAnim, !cooldownOpen);
+            }}
+          >
+            <Text
+              style={[styles.dropdownHeaderText, { color: colors.text }]}
+            >
+              Cooldown: {selectedCooldown}
+            </Text>
+          </TouchableOpacity>
+
+          {renderDropdown(
+            cooldownAnim,
+            cooldownOpen,
+            cooldownOptions.map((item, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.dropdownItem}
+                onPress={() => {
+                  setSelectedCooldown(item);
+                  setCooldownOpen(false);
+                  animateDropdown(cooldownAnim, false);
+                }}
+              >
+                <Text
+                  style={[styles.dropdownItemText, { color: colors.text }]}
+                >
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
+
+          {/* REST TIME */}
+          <TouchableOpacity
+            style={[
+              styles.dropdownHeader,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            onPress={() => {
+              setRestOpen(!restOpen);
+              animateDropdown(restAnim, !restOpen);
+            }}
+          >
+            <Text
+              style={[styles.dropdownHeaderText, { color: colors.text }]}
+            >
+              Rest Time: {selectedRest}
+            </Text>
+          </TouchableOpacity>
+
+          {renderDropdown(
+            restAnim,
+            restOpen,
+            restOptions.map((item, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.dropdownItem}
+                onPress={() => {
+                  setSelectedRest(item);
+                  setRestOpen(false);
+                  animateDropdown(restAnim, false);
+                }}
+              >
+                <Text
+                  style={[styles.dropdownItemText, { color: colors.text }]}
+                >
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
+
+          {/* SCHEDULED DAY */}
+          <TouchableOpacity
+            style={[
+              styles.dropdownHeader,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            onPress={() => {
+              setDayOpen(!dayOpen);
+              animateDropdown(dayAnim, !dayOpen);
+            }}
+          >
+            <Text
+              style={[styles.dropdownHeaderText, { color: colors.text }]}
+            >
+              Scheduled Day: {selectedDay}
+            </Text>
+          </TouchableOpacity>
+
+          {renderDropdown(
+            dayAnim,
+            dayOpen,
+            dayOptions.map((item, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.dropdownItem}
+                onPress={() => {
+                  setSelectedDay(item);
+                  setDayOpen(false);
+                  animateDropdown(dayAnim, false);
+                }}
+              >
+                <Text
+                  style={[styles.dropdownItemText, { color: colors.text }]}
+                >
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
+
+          {/* PREVIEW WORKOUT */}
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: colors.accent }]}
+            onPress={() =>
+              navigation.navigate("WorkoutPreview", {
+                mode,
+                equipment: selectedEquipment,
+                warmup: selectedWarmup,
+                cooldown: selectedCooldown,
+                restTime: selectedRest,
+                scheduledDay: selectedDay,
+                exercises: selectedExercises.map((ex) => ({
+                  name: ex,
+                  sets: exerciseDetails[ex]?.sets || 3,
+                  reps: exerciseDetails[ex]?.reps || 10,
+                })),
+              })
+            }
+          >
+            <Text style={[styles.buttonText, { color: colors.text }]}>
+              Preview Workout
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111',
     paddingTop: 60,
-    paddingHorizontal: 20
+    paddingHorizontal: 20,
   },
-  title: {
-    color: 'white',
-    fontSize: 28,
-    fontWeight: 'bold',
+
+  header: {
+    fontSize: 30,
+    fontWeight: "bold",
     marginBottom: 20,
-    textAlign: 'center'
   },
-  label: {
-    color: '#ff6600',
+
+  toggleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 30,
+  },
+  toggleLabel: {
     fontSize: 16,
-    marginTop: 10,
-    marginBottom: 4
+    fontWeight: "bold",
+    marginHorizontal: 10,
   },
-  dropdown: {
-    backgroundColor: '#222',
+  toggleSwitch: {
+    width: 50,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    paddingHorizontal: 3,
+  },
+  toggleCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+  },
+
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+
+  placeholder: {
+    marginBottom: 20,
+  },
+
+  dropdownHeader: {
+    padding: 14,
     borderRadius: 10,
-    marginBottom: 10
+    marginTop: 10,
+    borderWidth: 1,
   },
-  picker: {
-    color: 'white',
-    width: '100%'
+  dropdownHeaderText: {
+    fontSize: 18,
   },
-  generateButton: {
-    backgroundColor: '#ff6600',
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  dropdownItemText: {
+    fontSize: 16,
+  },
+
+  setsRepsRow: {
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+  },
+
+  exerciseName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+
+  counterGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+
+  counterLabel: {
+    width: 50,
+  },
+
+  counterButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 6,
+  },
+
+  counterButtonText: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+
+  counterValue: {
+    fontSize: 18,
+    width: 30,
+    textAlign: "center",
+  },
+
+  button: {
     paddingVertical: 14,
     borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 20
+    alignItems: "center",
+    marginTop: 30,
   },
-  generateText: {
-    color: 'white',
+  buttonText: {
     fontSize: 18,
-    fontWeight: 'bold'
+    fontWeight: "bold",
   },
-  result: {
-    marginTop: 20
-  }
 });
+
+
+
+
+
+
+
+
 
 
 

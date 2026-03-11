@@ -14,22 +14,33 @@ export default function ExerciseDetailScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
+
+      {/* HEADER */}
       <Text style={styles.title}>{exercise.name}</Text>
 
-      <Text style={styles.info}>Sets: {exercise.sets}</Text>
-      <Text style={styles.info}>Reps: {exercise.reps}</Text>
+      {/* INFO CARD */}
+      <View style={styles.card}>
+        <Text style={styles.label}>Sets</Text>
+        <Text style={styles.value}>{exercise.sets}</Text>
 
-      {/* 🔥 CHANGED: Removed work, added KG */}
-      <Text style={styles.info}>Weight: {exercise.kg ? exercise.kg : 0} kg</Text>
+        <Text style={styles.label}>Reps</Text>
+        <Text style={styles.value}>{exercise.reps}</Text>
 
-      <Text style={styles.info}>Rest: {exercise.rest}s</Text>
+        <Text style={styles.label}>Weight</Text>
+        <Text style={styles.value}>{exercise.kg ? exercise.kg : 0} kg</Text>
 
+        <Text style={styles.label}>Rest</Text>
+        <Text style={styles.value}>{exercise.rest}s</Text>
+      </View>
+
+      {/* BACK BUTTON */}
       <TouchableOpacity
         style={styles.backButton}
         onPress={() => navigation.goBack()}
       >
         <Text style={styles.backText}>Back</Text>
       </TouchableOpacity>
+
     </View>
   );
 }
@@ -39,30 +50,50 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#111',
     paddingTop: 60,
-    paddingHorizontal: 20
+    paddingHorizontal: 20,
   },
+
   title: {
     color: 'white',
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: 'bold',
-    marginBottom: 20
+    marginBottom: 20,
   },
-  info: {
-    color: '#aaa',
+
+  card: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#222',
+    marginBottom: 30,
+  },
+
+  label: {
+    color: '#ff6600',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
+  },
+
+  value: {
+    color: 'white',
     fontSize: 18,
-    marginBottom: 10
+    marginBottom: 10,
   },
+
   backButton: {
-    marginTop: 40,
     backgroundColor: '#ff6600',
     paddingVertical: 14,
     borderRadius: 10,
-    alignItems: 'center'
+    alignItems: 'center',
   },
+
   backText: {
     color: 'white',
     fontSize: 18,
-    fontWeight: 'bold'
-  }
+    fontWeight: 'bold',
+  },
 });
+
 

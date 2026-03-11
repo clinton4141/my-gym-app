@@ -1,77 +1,106 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { fullSync } from "../services/syncService";
+import useThemeColors from "../hooks/useThemeColors";
 
 export default function SettingsScreen({ navigation }) {
+  const colors = useThemeColors();
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Settings</Text>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
 
-      <View style={styles.section}>
+      {/* 🔥 Manual Backup Button */}
+      <TouchableOpacity
+        style={[
+          styles.item,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+        onPress={async () => {
+          await fullSync();
+          alert("Backup completed!");
+        }}
+      >
+        <Text style={[styles.itemText, { color: colors.text }]}>
+          Backup Now
+        </Text>
+      </TouchableOpacity>
 
-        {/* PROFILE */}
-        <TouchableOpacity
-          style={styles.option}
-          onPress={() => navigation.navigate("Profile")}
-        >
-          <Ionicons name="person-outline" size={24} color="white" />
-          <Text style={styles.optionText}>Profile</Text>
-        </TouchableOpacity>
+      {/* Profile */}
+      <TouchableOpacity
+        style={[
+          styles.item,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+        onPress={() => navigation.navigate("Profile")}
+      >
+        <Text style={[styles.itemText, { color: colors.text }]}>Profile</Text>
+      </TouchableOpacity>
 
-        {/* NOTIFICATIONS */}
-        <TouchableOpacity
-          style={styles.option}
-          onPress={() => navigation.navigate("Notifications")}
-        >
-          <Ionicons name="notifications-outline" size={24} color="white" />
-          <Text style={styles.optionText}>Notifications</Text>
-        </TouchableOpacity>
+      {/* Notifications */}
+      <TouchableOpacity
+        style={[
+          styles.item,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+        onPress={() => navigation.navigate("Notifications")}
+      >
+        <Text style={[styles.itemText, { color: colors.text }]}>
+          Notifications
+        </Text>
+      </TouchableOpacity>
 
-        {/* THEME */}
-        <TouchableOpacity
-          style={styles.option}
-          onPress={() => navigation.navigate("Theme")}
-        >
-          <Ionicons name="color-palette-outline" size={24} color="white" />
-          <Text style={styles.optionText}>Theme</Text>
-        </TouchableOpacity>
+      {/* Theme */}
+      <TouchableOpacity
+        style={[
+          styles.item,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+        onPress={() => navigation.navigate("Theme")}
+      >
+        <Text style={[styles.itemText, { color: colors.text }]}>Theme</Text>
+      </TouchableOpacity>
 
-      </View>
+      {/* Workout Reminder */}
+      <TouchableOpacity
+        style={[
+          styles.item,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+        onPress={() => navigation.navigate("WorkoutReminder")}
+      >
+        <Text style={[styles.itemText, { color: colors.text }]}>
+          Workout Reminder
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#111",
-    padding: 20,
-  },
-  header: {
-    color: "#ff6600",
-    fontSize: 32,
+  container: { flex: 1, padding: 20 },
+
+  title: {
+    fontSize: 28,
     fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 30,
+    marginBottom: 20,
   },
-  section: {
-    marginTop: 10,
-  },
-  option: {
-    backgroundColor: "#1a1a1a",
-    padding: 18,
-    borderRadius: 12,
-    flexDirection: "row",
-    alignItems: "center",
+
+  item: {
+    padding: 15,
+    borderRadius: 10,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#222",
   },
-  optionText: {
-    color: "white",
+
+  itemText: {
     fontSize: 18,
-    marginLeft: 12,
+    fontWeight: "500",
   },
 });
+
+
+
+
 
 

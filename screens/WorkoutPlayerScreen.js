@@ -1,604 +1,475 @@
-// ---------------------------------------------
-// PART 1 — IMPORTS + SAFETY CHECK + BASE SETUP
-// ---------------------------------------------
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
-  Linking,
+  StyleSheet,
 } from "react-native";
+import { Audio } from "expo-av";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
-// Optional metadata for descriptions + videos
-const exerciseMeta = {
-  "Shoulder Press": {
-    bodyPart: "Shoulders",
-    description: "Overhead dumbbell press targeting deltoids.",
-    video: "https://www.youtube.com/watch?v=B-aVuyhvLHU",
-  },
-  Squats: {
-    bodyPart: "Legs",
-    description: "Lower body movement targeting quads and glutes.",
-    video: "https://www.youtube.com/watch?v=aclHkVaku9U",
-  },
-  // Add more as needed...
-};
+import useThemeColors from "../hooks/useThemeColors";
 
 export default function WorkoutPlayerScreen({ route, navigation }) {
+  const colors = useThemeColors();
+  const workout = route.params;
 
-  // SAFETY CHECK — prevents crashes if workout is missing
-  if (!route || !route.params || !route.params.workout) {
+  if (!workout || !workout.exercises || workout.exercises.length === 0) {
     return (
-      <View style={styles.safeContainer}>
-        <Text style={styles.safeText}>No workout loaded.</Text>
-
+      <View
+        style={[styles.container, { backgroundColor: colors.bg }]}
+      >
+        <Text style={[styles.header, { color: colors.text }]}>
+          No workout loaded
+        </Text>
         <TouchableOpacity
-          onPress={() => navigation.navigate("StartWorkout")}
-          style={styles.safeButton}
+          style={[styles.orangeButton, { backgroundColor: colors.accent }]}
+          onPress={() => navigation.goBack()}
         >
-          <Text style={styles.safeButtonText}>Go Back</Text>
+          <Text style={[styles.orangeButtonText, { color: colors.text }]}>
+            Go Back
+          </Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  // SAFE TO USE NOW
-  const { workout } = route.params;
+  const { exercises, restTime } = workout;
 
-  // Track which exercise we are on
   const [exerciseIndex, setExerciseIndex] = useState(0);
-  const currentExercise = workout[exerciseIndex];
+  const [setStates, setSetStates] = useState({});
+  const [timerValues, setTimerValues] = useState({});
+  const [activeTimers, setActiveTimers] = useState({});
 
-  // Extract exercise info
-  const totalSets = currentExercise.sets || 1;
-  const defaultReps = currentExercise.reps || 10;
-  const defaultKg = currentExercise.kg || 0;
-  const restTime = currentExercise.rest || 30;
+  const beepSound = useRef(null);
 
-  // Per-set state
-  const [setStates, setSetStates] = useState(
-    Array.from({ length: totalSets }).map(() => ({
-      reps: String(defaultReps),
-      kg: String(defaultKg),
-      notes: "",
-      status: "pending", // pending | resting | done
-    }))
-  );
+  useEffect(() => {
+    const loadSound = async () => {
+      const { sound } = await Audio.Sound.createAsync(
+        require("../assets/beep.mp3")
+      );
+      beepSound.current = sound;
+    };
 
-  // Rest timer state
-  const [activeRestSet, setActiveRestSet] = useState(null);
-  const [restRemaining, setRestRemaining] = useState(0);
-  const restIntervalRef = useRef(null);
+    loadSound();
 
-// ---------------------------------------------
-// PART 2 — REST TIMER + SET COMPLETION LOGIC
-// ---------------------------------------------
-
-// Handle rest countdown
-useEffect(() => {
-  if (activeRestSet === null || restRemaining <= 0) return;
-
-  restIntervalRef.current = setInterval(() => {
-    setRestRemaining((prev) => {
-      if (prev <= 1) {
-        clearInterval(restIntervalRef.current);
-
-        // Mark set as done when rest finishes
-        setSetStates((prevStates) => {
-          const copy = [...prevStates];
-          if (copy[activeRestSet]) {
-            copy[activeRestSet] = {
-              ...copy[activeRestSet],
-              status: "done",
-            };
-          }
-          return copy;
-        });
-
-        setActiveRestSet(null);
-        return 0;
+    return () => {
+      if (beepSound.current) {
+        beepSound.current.unloadAsync();
       }
-      return prev - 1;
-    });
-  }, 1000);
+    };
+  }, []);
 
-  return () => clearInterval(restIntervalRef.current);
-}, [activeRestSet, restRemaining]);
-
-// When exercise changes, reset sets
-useEffect(() => {
-  const newExercise = workout[exerciseIndex];
-  const newTotalSets = newExercise.sets || 1;
-  const newDefaultReps = newExercise.reps || 10;
-  const newDefaultKg = newExercise.kg || 0;
-
-  setSetStates(
-    Array.from({ length: newTotalSets }).map(() => ({
-      reps: String(newDefaultReps),
-      kg: String(newDefaultKg),
-      notes: "",
-      status: "pending",
-    }))
-  );
-
-  setActiveRestSet(null);
-  setRestRemaining(0);
-}, [exerciseIndex]);
-
-// Update a field inside a specific set
-const handleChangeSetField = (index, field, value) => {
-  setSetStates((prev) => {
-    const copy = [...prev];
-    copy[index] = { ...copy[index], [field]: value };
-    return copy;
-  });
-};
-
-// When user taps "Complete Set"
-const handleCompleteSet = (setIndex) => {
-  setSetStates((prev) => {
-    const copy = [...prev];
-    copy[setIndex] = { ...copy[setIndex], status: "resting" };
-    return copy;
-  });
-
-  setActiveRestSet(setIndex);
-  setRestRemaining(restTime);
-};
-
-// Check if all sets are done
-const allSetsDone = setStates.every((s) => s.status === "done");
-
-// Check if this is the last exercise
-const isLastExercise = exerciseIndex === workout.length - 1;
-
-  // ---------------------------------------------
-// PART 3 — SAVE WORKOUT + NAVIGATION LOGIC
-// ---------------------------------------------
-
-// Save workout to history
-const saveWorkoutToHistory = async () => {
-  const timestamp = new Date().toISOString();
-
-  const entry = {
-    id: timestamp,
-    date: timestamp,
-    workout: workout,
+  const playBeep = async () => {
+    try {
+      if (beepSound.current) {
+        await beepSound.current.replayAsync();
+      }
+    } catch (error) {
+      console.log("Beep error:", error);
+    }
   };
 
-  try {
-    const stored = await AsyncStorage.getItem("workoutHistory");
-    const history = stored ? JSON.parse(stored) : [];
-
-    history.push(entry);
-
-    await AsyncStorage.setItem("workoutHistory", JSON.stringify(history));
-
-    navigation.navigate("WorkoutHistory");
-  } catch (error) {
-    console.log("Error saving workout:", error);
-  }
-};
-
-// Cancel workout
-const handleCancel = () => {
-  navigation.goBack();
-};
-
-// Move to next exercise
-const handleNextExercise = () => {
-  if (exerciseIndex + 1 < workout.length) {
-    setExerciseIndex(exerciseIndex + 1);
-  }
-};
-
-// ---------------------------------------------
-// PART 4 — FULL UI LAYOUT
-// ---------------------------------------------
-
-// Metadata for header
-const meta = exerciseMeta[currentExercise.name] || {};
-const bodyPart = meta.bodyPart || "Unknown";
-const description = meta.description || "No description available.";
-const videoUrl = meta.video || null;
-
-// Next 3 exercises preview
-const nextExercises = workout.slice(exerciseIndex + 1, exerciseIndex + 4);
-
-return (
-  <View style={styles.mainContainer}>
-    <ScrollView contentContainerStyle={styles.scrollContent}>
-
-      {/* ---------------- HEADER ---------------- */}
-      <View style={styles.headerCard}>
-        <Text style={styles.exerciseTitle}>{currentExercise.name}</Text>
-
-        <Text style={styles.exerciseMeta}>
-          Target: {bodyPart} • Sets: {totalSets} • Reps: {defaultReps} • Rest: {restTime}s
+  const currentExercise = exercises[exerciseIndex];
+  if (!currentExercise) {
+    return (
+      <View
+        style={[styles.container, { backgroundColor: colors.bg }]}
+      >
+        <Text style={[styles.header, { color: colors.text }]}>
+          Invalid exercise
         </Text>
-
-        <Text style={styles.description}>{description}</Text>
-
-        <Text style={styles.lastWeight}>
-          Last workout weight: {defaultKg} kg
-        </Text>
-
-        {videoUrl && (
-          <TouchableOpacity
-            onPress={() => Linking.openURL(videoUrl)}
-            style={styles.videoButton}
-          >
-            <Text style={styles.videoButtonText}>Watch Video</Text>
-          </TouchableOpacity>
-        )}
-
-        {nextExercises.length > 0 && (
-          <View style={styles.nextExercisesBox}>
-            <Text style={styles.nextExercisesTitle}>Next exercises:</Text>
-            {nextExercises.map((ex, idx) => (
-              <Text key={idx} style={styles.nextExerciseItem}>
-                • {ex.name}
-              </Text>
-            ))}
-          </View>
-        )}
-      </View>
-
-      {/* ---------------- SETS ---------------- */}
-      {setStates.map((setState, i) => {
-        const isResting = activeRestSet === i && setState.status === "resting";
-        const isDone = setState.status === "done";
-
-        return (
-          <View
-            key={i}
-            style={[
-              styles.setCard,
-              isDone && styles.setCardDone
-            ]}
-          >
-            <Text style={styles.setTitle}>Set {i + 1}</Text>
-
-            {/* Reps + Weight */}
-            <View style={styles.row}>
-              <View style={styles.fieldBox}>
-                <Text style={styles.fieldLabel}>Reps</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  keyboardType="numeric"
-                  value={setState.reps}
-                  onChangeText={(text) =>
-                    handleChangeSetField(i, "reps", text)
-                  }
-                />
-              </View>
-
-              <View style={styles.fieldBox}>
-                <Text style={styles.fieldLabel}>Weight (kg)</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  keyboardType="numeric"
-                  value={setState.kg}
-                  onChangeText={(text) =>
-                    handleChangeSetField(i, "kg", text)
-                  }
-                />
-              </View>
-            </View>
-
-            {/* Notes */}
-            <View style={styles.notesBox}>
-              <Text style={styles.fieldLabel}>Notes</Text>
-              <TextInput
-                style={styles.notesInput}
-                multiline
-                value={setState.notes}
-                onChangeText={(text) =>
-                  handleChangeSetField(i, "notes", text)
-                }
-              />
-            </View>
-
-            {/* Complete Set / Rest Timer / Done */}
-            {!isDone && !isResting && (
-              <TouchableOpacity
-                style={styles.completeButton}
-                onPress={() => handleCompleteSet(i)}
-              >
-                <Text style={styles.completeButtonText}>Complete Set</Text>
-              </TouchableOpacity>
-            )}
-
-            {isResting && (
-              <View style={styles.restBox}>
-                <Text style={styles.restText}>Rest: {restRemaining}s</Text>
-              </View>
-            )}
-
-            {isDone && (
-              <View style={styles.doneBox}>
-                <Text style={styles.doneText}>Set Finished</Text>
-              </View>
-            )}
-          </View>
-        );
-      })}
-
-      {/* ---------------- BOTTOM BUTTONS ---------------- */}
-      <View style={styles.bottomButtonsRow}>
-
-        {/* CANCEL */}
-        <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-          <Text style={styles.cancelText}>Cancel</Text>
+        <TouchableOpacity
+          style={[styles.orangeButton, { backgroundColor: colors.accent }]}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={[styles.orangeButtonText, { color: colors.text }]}>
+            Go Back
+          </Text>
         </TouchableOpacity>
-
-        {/* NEXT EXERCISE OR SAVE & FINISH */}
-        {isLastExercise ? (
-          <TouchableOpacity
-            style={[
-              styles.finishButton,
-              !allSetsDone && { opacity: 0.5 }
-            ]}
-            disabled={!allSetsDone}
-            onPress={saveWorkoutToHistory}
-          >
-            <Text style={styles.finishText}>Save & Finish</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={[
-              styles.nextExerciseButton,
-              !allSetsDone && { opacity: 0.5 }
-            ]}
-            disabled={!allSetsDone}
-            onPress={handleNextExercise}
-          >
-            <Text style={styles.nextExerciseText}>Next Exercise</Text>
-          </TouchableOpacity>
-        )}
-
       </View>
-    </ScrollView>
-  </View>
-);
-}   // ← ADD THIS BRACE RIGHT HERE
+    );
+  }
 
-// ---------------------------------------------
-// PART 5 — DARK MODE STYLES
-// ---------------------------------------------
+  const totalSets = currentExercise.sets || 1;
+
+  useEffect(() => {
+    if (!setStates[exerciseIndex]) {
+      const initial = {};
+      for (let i = 1; i <= totalSets; i++) {
+        initial[i] = {
+          reps: currentExercise.reps || 10,
+          weight: "",
+          notes: "",
+          completed: false,
+          timerRunning: false,
+        };
+      }
+      setSetStates((prev) => ({ ...prev, [exerciseIndex]: initial }));
+    }
+  }, [exerciseIndex]);
+
+  const updateField = (setNum, field, value) => {
+    setSetStates((prev) => ({
+      ...prev,
+      [exerciseIndex]: {
+        ...prev[exerciseIndex],
+        [setNum]: {
+          ...prev[exerciseIndex][setNum],
+          [field]: value,
+        },
+      },
+    }));
+  };
+
+  const startTimer = (setNum) => {
+    const seconds = parseInt(restTime) || 30;
+
+    setActiveTimers((prev) => ({ ...prev, [setNum]: true }));
+    setTimerValues((prev) => ({ ...prev, [setNum]: seconds }));
+
+    const interval = setInterval(() => {
+      setTimerValues((prev) => {
+        const newVal = prev[setNum] - 1;
+
+        if (newVal === 3) playBeep();
+        if (newVal === 2) playBeep();
+        if (newVal === 1) playBeep();
+
+        if (newVal <= 0) {
+          clearInterval(interval);
+          setActiveTimers((prev) => ({ ...prev, [setNum]: false }));
+
+          playBeep();
+
+          updateField(setNum, "completed", true);
+          updateField(setNum, "timerRunning", false);
+        }
+
+        return { ...prev, [setNum]: newVal };
+      });
+    }, 1000);
+  };
+
+  const completeSet = (setNum) => {
+    updateField(setNum, "timerRunning", true);
+    startTimer(setNum);
+  };
+
+  const saveWorkoutToHistory = async () => {
+    try {
+      const stored = await AsyncStorage.getItem("workout_history");
+      const history = stored ? JSON.parse(stored) : [];
+
+      const summary = {
+        date: new Date().toISOString().split("T")[0],
+        timestamp: Date.now(),
+        exercises: exercises.map((ex, idx) => {
+          const setsForExercise = setStates[idx]
+            ? Object.values(setStates[idx]).map((s) => ({
+                reps: Number(s.reps) || 0,
+                weight: Number(s.weight) || 0,
+              }))
+            : [];
+
+          return {
+            name: ex.name,
+            sets: setsForExercise,
+          };
+        }),
+      };
+
+      history.push(summary);
+      await AsyncStorage.setItem("workout_history", JSON.stringify(history));
+    } catch (e) {
+      console.log("Error saving workout history:", e);
+    }
+  };
+
+  const goNextExercise = async () => {
+    if (exerciseIndex < exercises.length - 1) {
+      setExerciseIndex(exerciseIndex + 1);
+    } else {
+      await saveWorkoutToHistory();
+      navigation.navigate("MainTabs", { screen: "Home" });
+    }
+  };
+
+  return (
+    <View
+      style={[styles.container, { backgroundColor: colors.bg }]}
+    >
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={[styles.header, { color: colors.text }]}>
+          {currentExercise.name}
+        </Text>
+        <Text style={[styles.infoText, { color: colors.subtext }]}>
+          Targets: {currentExercise.target || "N/A"}
+        </Text>
+        <Text style={[styles.infoText, { color: colors.subtext }]}>
+          {totalSets} sets × {currentExercise.reps || 10} reps × {restTime}s
+          {" "}rest
+        </Text>
+        <Text style={[styles.infoText, { color: colors.subtext }]}>
+          Last weight: {currentExercise.lastWeight || "N/A"}
+        </Text>
+
+        {setStates[exerciseIndex] &&
+          Object.keys(setStates[exerciseIndex]).map((setNum) => {
+            const s = setStates[exerciseIndex][setNum];
+            const timer = timerValues[setNum] || restTime;
+
+            return (
+              <View
+                key={setNum}
+                style={[
+                  styles.card,
+                  {
+                    backgroundColor: s.completed
+                      ? "#00cc00"
+                      : colors.card,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.cardTitle, { color: colors.text }]}>
+                  Set {setNum}
+                </Text>
+
+                <View style={styles.row}>
+                  <View style={styles.inputGroup}>
+                    <Text style={[styles.label, { color: colors.subtext }]}>
+                      Reps
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: colors.bg,
+                          color: colors.text,
+                        },
+                      ]}
+                      keyboardType="numeric"
+                      value={String(s.reps)}
+                      onChangeText={(v) => updateField(setNum, "reps", v)}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={[styles.label, { color: colors.subtext }]}>
+                      Weight
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: colors.bg,
+                          color: colors.text,
+                        },
+                      ]}
+                      keyboardType="numeric"
+                      value={String(s.weight)}
+                      onChangeText={(v) => updateField(setNum, "weight", v)}
+                    />
+                  </View>
+                </View>
+
+                <Text style={[styles.label, { color: colors.subtext }]}>
+                  Notes
+                </Text>
+                <TextInput
+                  style={[
+                    styles.notes,
+                    {
+                      backgroundColor: colors.bg,
+                      color: colors.text,
+                    },
+                  ]}
+                  multiline
+                  value={s.notes}
+                  onChangeText={(v) => updateField(setNum, "notes", v)}
+                />
+
+                {!s.completed && !s.timerRunning && (
+                  <TouchableOpacity
+                    style={[
+                      styles.orangeButton,
+                      { backgroundColor: colors.accent },
+                    ]}
+                    onPress={() => completeSet(setNum)}
+                  >
+                    <Text
+                      style={[styles.orangeButtonText, { color: colors.text }]}
+                    >
+                      Complete Set
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {s.timerRunning && (
+                  <View
+                    style={[
+                      styles.timerButton,
+                      { backgroundColor: colors.card },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.timerText, { color: colors.accent }]}
+                    >
+                      Rest: {timer}s
+                    </Text>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+
+        <View style={styles.bottomButtonsContainer}>
+          <TouchableOpacity
+            style={[
+              styles.cancelButton,
+              { backgroundColor: colors.accent },
+            ]}
+            onPress={() => navigation.goBack()}
+          >
+            <Text
+              style={[styles.cancelButtonText, { color: colors.text }]}
+            >
+              Cancel
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.orangeButtonBottom,
+              { backgroundColor: colors.accent },
+            ]}
+            onPress={goNextExercise}
+          >
+            <Text
+              style={[styles.orangeButtonText, { color: colors.text }]}
+            >
+              {exerciseIndex === exercises.length - 1
+                ? "Save & Finish"
+                : "Next Exercise"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-
-  // SAFETY SCREEN
-  safeContainer: {
+  container: {
     flex: 1,
-    backgroundColor: "#111",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  safeText: {
-    color: "white",
-    fontSize: 20,
-    marginBottom: 20,
-  },
-  safeButton: {
-    backgroundColor: "#ff6600",
-    paddingVertical: 12,
+    paddingTop: 40,
     paddingHorizontal: 20,
-    borderRadius: 10,
-  },
-  safeButtonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
   },
 
-  // MAIN LAYOUT
-  mainContainer: {
-    flex: 1,
-    backgroundColor: "#111",
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-
-  // HEADER
-  headerCard: {
-    backgroundColor: "#1a1a1a",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#222",
-  },
-  exerciseTitle: {
-    fontSize: 24,
+  header: {
+    fontSize: 28,
     fontWeight: "bold",
-    color: "white",
-    marginBottom: 6,
-  },
-  exerciseMeta: {
-    fontSize: 14,
-    color: "#bbb",
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 14,
-    color: "#ccc",
     marginBottom: 10,
   },
-  lastWeight: {
-    fontSize: 14,
-    color: "#aaa",
-    marginBottom: 12,
-  },
-  videoButton: {
-    backgroundColor: "#28a745",
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  videoButtonText: {
-    color: "white",
-    fontWeight: "bold",
-  },
-  nextExercisesBox: {
-    marginTop: 8,
-  },
-  nextExercisesTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "white",
+
+  infoText: {
+    fontSize: 16,
     marginBottom: 4,
   },
-  nextExerciseItem: {
-    fontSize: 14,
-    color: "#ccc",
+
+  card: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
   },
 
-  // SET CARDS
-  setCard: {
-    backgroundColor: "#1a1a1a",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#222",
-  },
-  setCardDone: {
-    backgroundColor: "#0f3317",
-    borderColor: "#28a745",
-  },
-  setTitle: {
-    fontSize: 18,
+  cardTitle: {
+    fontSize: 20,
     fontWeight: "bold",
-    color: "white",
-    marginBottom: 12,
+    marginBottom: 10,
   },
+
   row: {
     flexDirection: "row",
-    gap: 10,
-    marginBottom: 12,
+    justifyContent: "space-between",
   },
-  fieldBox: {
-    flex: 1,
+
+  inputGroup: {
+    width: "48%",
   },
-  fieldLabel: {
-    fontSize: 13,
-    color: "#bbb",
+
+  label: {
     marginBottom: 4,
   },
-  fieldInput: {
-    borderWidth: 1,
-    borderColor: "#333",
+
+  input: {
+    padding: 10,
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    fontSize: 14,
-    color: "white",
-    backgroundColor: "#222",
-  },
-  notesBox: {
-    marginBottom: 12,
-  },
-  notesInput: {
-    borderWidth: 1,
-    borderColor: "#333",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 14,
-    color: "white",
-        backgroundColor: "#222",
-    minHeight: 50,
+    fontSize: 16,
   },
 
-  // BUTTONS INSIDE SETS
-  completeButton: {
-    backgroundColor: "#28a745",
+  notes: {
+    padding: 10,
+    borderRadius: 8,
+    height: 60,
+    marginBottom: 10,
+  },
+
+  orangeButton: {
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
+    marginTop: 10,
   },
-  completeButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  restBox: {
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    backgroundColor: "#332b00",
-  },
-  restText: {
-    color: "#ffcc00",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  doneBox: {
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    backgroundColor: "#0f3317",
-  },
-  doneText: {
-    color: "#28a745",
+
+  orangeButtonText: {
     fontSize: 16,
     fontWeight: "bold",
   },
 
-  // BOTTOM BUTTONS
-  bottomButtonsRow: {
+  timerButton: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  timerText: {
+    fontSize: 18,
+  },
+
+  bottomButtonsContainer: {
+    marginTop: 30,
+    marginBottom: 40,
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 20,
-    gap: 10,
-  },
-  cancelButton: {
-    flex: 1,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#ff0000",
-    paddingVertical: 12,
     alignItems: "center",
-    backgroundColor: "#1a1a1a",
   },
-  cancelText: {
-    color: "#ff0000",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  nextExerciseButton: {
-    flex: 1,
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-    backgroundColor: "#ff6600",
-  },
-  nextExerciseText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  finishButton: {
-  flex: 1,
-  borderRadius: 8,
-  paddingVertical: 12,
-  alignItems: "center",
-  backgroundColor: "#28a745",
-},
 
-finishText: {
-  color: "white",
-  fontSize: 16,
-  fontWeight: "bold",
-},
+  cancelButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+
+  cancelButtonText: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+
+  orangeButtonBottom: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
 });
+
+
+
 

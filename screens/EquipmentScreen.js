@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,25 +8,34 @@ import {
   Linking,
   Image,
   Modal,
-  TextInput
-} from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+  TextInput,
+} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import useThemeColors from "../hooks/useThemeColors";
 
-export default function EquipmentScreen() {
+export default function EquipmentScreen({ navigation }) {
+  const colors = useThemeColors();
+
   const [equipment, setEquipment] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
 
-  // Form fields
-  const [name, setName] = useState('');
-  const [bodyPart, setBodyPart] = useState('');
-  const [type, setType] = useState('');
-  const [description, setDescription] = useState('');
-  const [video, setVideo] = useState('');
-  const [image, setImage] = useState('');
+  const [name, setName] = useState("");
+  const [bodyPart, setBodyPart] = useState("");
+  const [type, setType] = useState("");
+  const [description, setDescription] = useState("");
+  const [video, setVideo] = useState("");
+  const [image, setImage] = useState("");
 
   useEffect(() => {
     loadEquipment();
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      loadEquipment();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const loadEquipment = async () => {
     const stored = await AsyncStorage.getItem("equipment");
@@ -43,98 +52,178 @@ export default function EquipmentScreen() {
       type,
       description,
       video,
-      image
+      image,
     };
 
-    const updated = [...equipment, newItem];
+    setEquipment((prev) => {
+      const updated = [...prev, newItem];
+      AsyncStorage.setItem("equipment", JSON.stringify(updated));
+      return updated;
+    });
 
-    await AsyncStorage.setItem("equipment", JSON.stringify(updated));
-    setEquipment(updated);
-
-    // Reset form
-    setName('');
-    setBodyPart('');
-    setType('');
-    setDescription('');
-    setVideo('');
-    setImage('');
+    setName("");
+    setBodyPart("");
+    setType("");
+    setDescription("");
+    setVideo("");
+    setImage("");
 
     setModalVisible(false);
   };
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Your Equipment</Text>
+  const deleteEquipment = async (index) => {
+    setEquipment((prev) => {
+      const updated = [...prev];
+      updated.splice(index, 1);
+      AsyncStorage.setItem("equipment", JSON.stringify(updated));
+      return updated;
+    });
+  };
 
-      {/* Add Button */}
+  const editEquipment = (item, index) => {
+    navigation.navigate("EditEquipmentScreen", { item, index });
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <Text style={[styles.title, { color: colors.text }]}>Your Equipment</Text>
+
       <TouchableOpacity
-        style={styles.addButton}
+        style={[styles.addButton, { backgroundColor: colors.accent }]}
         onPress={() => setModalVisible(true)}
       >
-        <Text style={styles.addButtonText}>+ Add Equipment</Text>
+        <Text style={[styles.addButtonText, { color: colors.text }]}>
+          + Add Equipment
+        </Text>
       </TouchableOpacity>
 
       <ScrollView style={{ marginTop: 20 }}>
         {equipment.length === 0 && (
-          <Text style={styles.empty}>No equipment added yet.</Text>
+          <Text style={[styles.empty, { color: colors.subtext }]}>
+            No equipment added yet.
+          </Text>
         )}
 
         {equipment.map((item, index) => (
-          <View key={index} style={styles.card}>
+          <View
+            key={index}
+            style={[
+              styles.card,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
             {item.image ? (
               <Image source={{ uri: item.image }} style={styles.image} />
             ) : null}
 
-            <Text style={styles.name}>{item.name}</Text>
-            <Text style={styles.field}>Body Part: <Text style={styles.value}>{item.bodyPart}</Text></Text>
-            <Text style={styles.field}>Type: <Text style={styles.value}>{item.type}</Text></Text>
-            <Text style={styles.field}>Description:</Text>
-            <Text style={styles.description}>{item.description}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.name, { color: colors.accent }]}>
+                {item.name}
+              </Text>
 
-            {item.video ? (
-              <TouchableOpacity onPress={() => Linking.openURL(item.video)}>
-                <Text style={styles.video}>Watch Video</Text>
+              <Text style={[styles.field, { color: colors.subtext }]}>
+                Body Part:{" "}
+                <Text style={[styles.value, { color: colors.text }]}>
+                  {item.bodyPart}
+                </Text>
+              </Text>
+
+              <Text style={[styles.field, { color: colors.subtext }]}>
+                Type:{" "}
+                <Text style={[styles.value, { color: colors.text }]}>
+                  {item.type}
+                </Text>
+              </Text>
+
+              <Text style={[styles.field, { color: colors.subtext }]}>
+                Description:
+              </Text>
+              <Text style={[styles.description, { color: colors.text }]}>
+                {item.description}
+              </Text>
+
+              {item.video ? (
+                <TouchableOpacity onPress={() => Linking.openURL(item.video)}>
+                  <Text style={[styles.video, { color: colors.accent }]}>
+                    Watch Video
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            <View style={styles.iconColumn}>
+              <TouchableOpacity onPress={() => editEquipment(item, index)}>
+                <Text style={[styles.editIcon, { color: colors.accent }]}>
+                  ✏️
+                </Text>
               </TouchableOpacity>
-            ) : null}
+
+              <TouchableOpacity onPress={() => deleteEquipment(index)}>
+                <Text style={[styles.trashIcon, { color: "red" }]}>🗑️</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ))}
       </ScrollView>
 
-      {/* Modal */}
+      {/* ADD EQUIPMENT MODAL */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Add Equipment</Text>
+          <View
+            style={[
+              styles.modalBox,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Add Equipment
+            </Text>
 
             <ScrollView>
               <TextInput
                 placeholder="Name"
-                placeholderTextColor="#888"
-                style={styles.input}
+                placeholderTextColor={colors.subtext}
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.bg, color: colors.text },
+                ]}
                 value={name}
                 onChangeText={setName}
               />
 
               <TextInput
                 placeholder="Body Part"
-                placeholderTextColor="#888"
-                style={styles.input}
+                placeholderTextColor={colors.subtext}
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.bg, color: colors.text },
+                ]}
                 value={bodyPart}
                 onChangeText={setBodyPart}
               />
 
               <TextInput
                 placeholder="Type (e.g., Dumbbells, Machine)"
-                placeholderTextColor="#888"
-                style={styles.input}
+                placeholderTextColor={colors.subtext}
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.bg, color: colors.text },
+                ]}
                 value={type}
                 onChangeText={setType}
               />
 
               <TextInput
                 placeholder="Description"
-                placeholderTextColor="#888"
-                style={[styles.input, { height: 80 }]}
+                placeholderTextColor={colors.subtext}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.bg,
+                    color: colors.text,
+                    height: 80,
+                  },
+                ]}
                 value={description}
                 onChangeText={setDescription}
                 multiline
@@ -142,151 +231,180 @@ export default function EquipmentScreen() {
 
               <TextInput
                 placeholder="Video URL"
-                placeholderTextColor="#888"
-                style={styles.input}
+                placeholderTextColor={colors.subtext}
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.bg, color: colors.text },
+                ]}
                 value={video}
                 onChangeText={setVideo}
               />
 
               <TextInput
                 placeholder="Image URL (optional)"
-                placeholderTextColor="#888"
-                style={styles.input}
+                placeholderTextColor={colors.subtext}
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.bg, color: colors.text },
+                ]}
                 value={image}
                 onChangeText={setImage}
               />
 
-              <TouchableOpacity style={styles.saveButton} onPress={saveEquipment}>
-                <Text style={styles.saveText}>Save</Text>
+              <TouchableOpacity
+                style={[styles.saveButton, { backgroundColor: colors.accent }]}
+                onPress={saveEquipment}
+              >
+                <Text style={[styles.saveText, { color: colors.text }]}>
+                  Save
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.cancelButton}
                 onPress={() => setModalVisible(false)}
               >
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={[styles.cancelText, { color: colors.subtext }]}>
+                  Cancel
+                </Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#111',
-    padding: 20
-  },
+  container: { flex: 1, padding: 20 },
+
   title: {
-    color: 'white',
     fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center'
+    fontWeight: "bold",
+    textAlign: "center",
   },
+
   addButton: {
-    backgroundColor: '#ff6600',
     padding: 12,
     borderRadius: 10,
     marginTop: 15,
-    alignItems: 'center'
+    alignItems: "center",
   },
   addButtonText: {
-    color: 'white',
     fontSize: 16,
-    fontWeight: 'bold'
+    fontWeight: "bold",
   },
+
   empty: {
-    color: '#aaa',
-    textAlign: 'center',
-    marginTop: 40
+    textAlign: "center",
+    marginTop: 40,
   },
+
   card: {
-    backgroundColor: '#222',
     padding: 15,
     borderRadius: 12,
-    marginBottom: 20
+    marginBottom: 20,
+    flexDirection: "row",
+    borderWidth: 1,
   },
+
   image: {
-    width: '100%',
-    height: 140,
+    width: 90,
+    height: 90,
     borderRadius: 10,
-    marginBottom: 10
+    marginRight: 12,
   },
+
   name: {
-    color: '#ff6600',
     fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 6
+    fontWeight: "bold",
+    marginBottom: 6,
   },
+
   field: {
-    color: '#ccc',
     fontSize: 14,
-    marginTop: 4
-  },
-  value: {
-    color: 'white'
-  },
-  description: {
-    color: '#ddd',
     marginTop: 4,
-    marginBottom: 10
   },
+
+  value: {
+    fontWeight: "600",
+  },
+
+  description: {
+    marginTop: 4,
+    marginBottom: 10,
+  },
+
   video: {
-    color: '#ff6600',
     marginTop: 10,
-    fontWeight: 'bold'
+    fontWeight: "bold",
   },
+
+  iconColumn: {
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginLeft: 10,
+  },
+
+  editIcon: {
+    fontSize: 22,
+  },
+
+  trashIcon: {
+    fontSize: 22,
+  },
+
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    padding: 20
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    padding: 20,
   },
+
   modalBox: {
-    backgroundColor: '#222',
     padding: 20,
     borderRadius: 12,
-    maxHeight: '90%'
+    maxHeight: "90%",
+    borderWidth: 1,
   },
+
   modalTitle: {
-    color: 'white',
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 15,
-    textAlign: 'center'
+    textAlign: "center",
   },
+
   input: {
-    backgroundColor: '#333',
-    color: 'white',
     padding: 10,
     borderRadius: 8,
-    marginBottom: 12
+    marginBottom: 12,
+    borderWidth: 1,
   },
+
   saveButton: {
-    backgroundColor: '#ff6600',
     padding: 12,
     borderRadius: 10,
     marginTop: 10,
-    alignItems: 'center'
+    alignItems: "center",
   },
   saveText: {
-    color: 'white',
-    fontWeight: 'bold'
+    fontWeight: "bold",
   },
+
   cancelButton: {
     padding: 12,
     borderRadius: 10,
     marginTop: 10,
-    alignItems: 'center'
+    alignItems: "center",
   },
   cancelText: {
-    color: '#aaa'
-  }
+    fontSize: 16,
+  },
 });
+
+
 
 
 
