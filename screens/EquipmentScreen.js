@@ -5,273 +5,322 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Linking,
-  Image,
-  Modal,
   TextInput,
+  Alert,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 import useThemeColors from "../hooks/useThemeColors";
+import { defaultEquipment } from "../data/defaultEquipment";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 
 export default function EquipmentScreen({ navigation }) {
   const colors = useThemeColors();
 
   const [equipment, setEquipment] = useState([]);
-  const [modalVisible, setModalVisible] = useState(false);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("All");
 
-  const [name, setName] = useState("");
-  const [bodyPart, setBodyPart] = useState("");
-  const [type, setType] = useState("");
-  const [description, setDescription] = useState("");
-  const [video, setVideo] = useState("");
-  const [image, setImage] = useState("");
-
-  useEffect(() => {
-    loadEquipment();
-  }, []);
+  const categories = ["All", "Chest", "Back", "Shoulders", "Arms", "Legs", "Core"];
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
+      initializeEquipment();
       loadEquipment();
     });
     return unsubscribe;
   }, [navigation]);
 
+  // AUTO‑LOAD DEFAULT EQUIPMENT ON FIRST RUN
+  const initializeEquipment = async () => {
+    const stored = await AsyncStorage.getItem("equipment_list");
+
+    if (stored && JSON.parse(stored).length > 0) return;
+
+    const withIds = defaultEquipment.map((item) => ({
+      ...item,
+      id: Date.now().toString() + Math.random().toString(36).slice(2),
+      favorite: false,
+    }));
+
+    await AsyncStorage.setItem("equipment_list", JSON.stringify(withIds));
+  };
+
   const loadEquipment = async () => {
-    const stored = await AsyncStorage.getItem("equipment");
-    const parsed = stored ? JSON.parse(stored) : [];
-    setEquipment(parsed);
+    const stored = await AsyncStorage.getItem("equipment_list");
+    setEquipment(stored ? JSON.parse(stored) : []);
   };
 
-  const saveEquipment = async () => {
-    if (!name.trim()) return;
-
-    const newItem = {
-      name,
-      bodyPart,
-      type,
-      description,
-      video,
-      image,
-    };
-
-    setEquipment((prev) => {
-      const updated = [...prev, newItem];
-      AsyncStorage.setItem("equipment", JSON.stringify(updated));
-      return updated;
-    });
-
-    setName("");
-    setBodyPart("");
-    setType("");
-    setDescription("");
-    setVideo("");
-    setImage("");
-
-    setModalVisible(false);
+  const deleteItem = (id) => {
+    Alert.alert("Delete Equipment", "Are you sure?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          const updated = equipment.filter((item) => item.id !== id);
+          setEquipment(updated);
+          await AsyncStorage.setItem("equipment_list", JSON.stringify(updated));
+        },
+      },
+    ]);
   };
 
-  const deleteEquipment = async (index) => {
-    setEquipment((prev) => {
-      const updated = [...prev];
-      updated.splice(index, 1);
-      AsyncStorage.setItem("equipment", JSON.stringify(updated));
-      return updated;
-    });
+  const toggleFavorite = async (id) => {
+    const updated = equipment.map((item) =>
+      item.id === id ? { ...item, favorite: !item.favorite } : item
+    );
+    setEquipment(updated);
+    await AsyncStorage.setItem("equipment_list", JSON.stringify(updated));
   };
 
-  const editEquipment = (item, index) => {
-    navigation.navigate("EditEquipmentScreen", { item, index });
+  // CSV EXPORT (console only)
+  const exportCSV = () => {
+    const header = "Name,Body Part,Type,Description,Video URL\n";
+
+    const rows = equipment
+      .map(
+        (item) =>
+          `"${item.name}","${item.bodyPart}","${item.type}","${item.description}","${item.videoUrl}"`
+      )
+      .join("\n");
+
+    const csv = header + rows;
+
+    console.log(csv);
+    Alert.alert("CSV Exported", "CSV printed to console.");
   };
+
+  // PDF EXPORT
+  const exportPDF = async () => {
+    const html = `
+      <html>
+        <body>
+          <h1>My Equipment List</h1>
+          <table border="1" style="border-collapse: collapse; width: 100%;">
+            <tr>
+              <th>Name</th>
+              <th>Body Part</th>
+              <th>Type</th>
+              <th>Description</th>
+              <th>Video URL</th>
+            </tr>
+            ${equipment
+              .map(
+                (item) => `
+              <tr>
+                <td>${item.name}</td>
+                <td>${item.bodyPart}</td>
+                <td>${item.type}</td>
+                <td>${item.description}</td>
+                <td>${item.videoUrl}</td>
+              </tr>`
+              )
+              .join("")}
+          </table>
+        </body>
+      </html>
+    `;
+
+    const { uri } = await Print.printToFileAsync({ html });
+
+    await Sharing.shareAsync(uri);
+  };
+
+  // FILTER + SEARCH
+  const filtered = equipment
+    .filter((item) =>
+      category === "All" ? true : item.bodyPart === category
+    )
+    .filter((item) =>
+      item.name.toLowerCase().includes(search.toLowerCase())
+    );
+
+  const favorites = filtered.filter((item) => item.favorite);
+  const nonFavorites = filtered.filter((item) => !item.favorite);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <Text style={[styles.title, { color: colors.text }]}>Your Equipment</Text>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+        <Text style={[styles.title, { color: colors.text }]}>My Equipment</Text>
 
-      <TouchableOpacity
-        style={[styles.addButton, { backgroundColor: colors.accent }]}
-        onPress={() => setModalVisible(true)}
-      >
-        <Text style={[styles.addButtonText, { color: colors.text }]}>
-          + Add Equipment
-        </Text>
-      </TouchableOpacity>
+        {/* SEARCH BAR */}
+        <TextInput
+          placeholder="Search equipment..."
+          placeholderTextColor={colors.subtext}
+          style={[styles.searchInput, { backgroundColor: colors.card, color: colors.text }]}
+          value={search}
+          onChangeText={setSearch}
+        />
 
-      <ScrollView style={{ marginTop: 20 }}>
-        {equipment.length === 0 && (
-          <Text style={[styles.empty, { color: colors.subtext }]}>
-            No equipment added yet.
-          </Text>
+        {/* CATEGORY FILTERS */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15 }}>
+          {categories.map((cat) => (
+            <TouchableOpacity
+              key={cat}
+              style={[
+                styles.categoryButton,
+                {
+                  backgroundColor: category === cat ? colors.accent : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setCategory(cat)}
+            >
+              <Text
+                style={{
+                  color: category === cat ? "#fff" : colors.text,
+                  fontWeight: "600",
+                }}
+              >
+                {cat}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* EXPORT BUTTONS */}
+        <TouchableOpacity
+          style={[styles.exportButton, { backgroundColor: colors.accent }]}
+          onPress={exportCSV}
+        >
+          <Ionicons name="download-outline" size={22} color="#fff" />
+          <Text style={styles.exportText}>Export CSV</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.exportButton, { backgroundColor: colors.accent }]}
+          onPress={exportPDF}
+        >
+          <Ionicons name="document-outline" size={22} color="#fff" />
+          <Text style={styles.exportText}>Export PDF</Text>
+        </TouchableOpacity>
+
+        {/* FAVORITES SECTION */}
+        {favorites.length > 0 && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Favorites</Text>
+
+            {favorites.map((item) => (
+              <View
+                key={item.id}
+                style={[
+                  styles.card,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
+                <View style={styles.cardHeader}>
+                  <Text style={[styles.name, { color: colors.text }]}>
+                    {item.name}
+                  </Text>
+
+                  <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
+                    <Ionicons name="star" size={26} color={colors.accent} />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={[styles.detail, { color: colors.subtext }]}>
+                  Body Part: {item.bodyPart}
+                </Text>
+                <Text style={[styles.detail, { color: colors.subtext }]}>
+                  Type: {item.type}
+                </Text>
+                <Text style={[styles.detail, { color: colors.subtext }]}>
+                  {item.description}
+                </Text>
+
+                <View style={styles.row}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      navigation.navigate("EditEquipment", { item })
+                    }
+                  >
+                    <Ionicons
+                      name="create-outline"
+                      size={26}
+                      color={colors.accent}
+                    />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity onPress={() => deleteItem(item.id)}>
+                    <Ionicons
+                      name="trash-outline"
+                      size={26}
+                      color={colors.accent}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </>
         )}
 
-        {equipment.map((item, index) => (
-          <View
-            key={index}
-            style={[
-              styles.card,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
-            {item.image ? (
-              <Image source={{ uri: item.image }} style={styles.image} />
-            ) : null}
+        {/* ALL EQUIPMENT SECTION */}
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>All Equipment</Text>
 
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.name, { color: colors.accent }]}>
-                {item.name}
-              </Text>
-
-              <Text style={[styles.field, { color: colors.subtext }]}>
-                Body Part:{" "}
-                <Text style={[styles.value, { color: colors.text }]}>
-                  {item.bodyPart}
+        {nonFavorites.length === 0 ? (
+          <Text style={[styles.emptyText, { color: colors.subtext }]}>
+            No equipment found.
+          </Text>
+        ) : (
+          nonFavorites.map((item) => (
+            <View
+              key={item.id}
+              style={[
+                styles.card,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <View style={styles.cardHeader}>
+                <Text style={[styles.name, { color: colors.text }]}>
+                  {item.name}
                 </Text>
-              </Text>
 
-              <Text style={[styles.field, { color: colors.subtext }]}>
-                Type:{" "}
-                <Text style={[styles.value, { color: colors.text }]}>
-                  {item.type}
-                </Text>
-              </Text>
+                <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
+                  <Ionicons
+                    name={item.favorite ? "star" : "star-outline"}
+                    size={26}
+                    color={colors.accent}
+                  />
+                </TouchableOpacity>
+              </View>
 
-              <Text style={[styles.field, { color: colors.subtext }]}>
-                Description:
+              <Text style={[styles.detail, { color: colors.subtext }]}>
+                Body Part: {item.bodyPart}
               </Text>
-              <Text style={[styles.description, { color: colors.text }]}>
+              <Text style={[styles.detail, { color: colors.subtext }]}>
+                Type: {item.type}
+              </Text>
+              <Text style={[styles.detail, { color: colors.subtext }]}>
                 {item.description}
               </Text>
 
-              {item.video ? (
-                <TouchableOpacity onPress={() => Linking.openURL(item.video)}>
-                  <Text style={[styles.video, { color: colors.accent }]}>
-                    Watch Video
-                  </Text>
+              <View style={styles.row}>
+                <TouchableOpacity
+                  onPress={() =>
+                    navigation.navigate("EditEquipment", { item })
+                  }
+                >
+                  <Ionicons
+                    name="create-outline"
+                    size={26}
+                    color={colors.accent}
+                  />
                 </TouchableOpacity>
-              ) : null}
-            </View>
 
-            <View style={styles.iconColumn}>
-              <TouchableOpacity onPress={() => editEquipment(item, index)}>
-                <Text style={[styles.editIcon, { color: colors.accent }]}>
-                  ✏️
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => deleteEquipment(index)}>
-                <Text style={[styles.trashIcon, { color: "red" }]}>🗑️</Text>
-              </TouchableOpacity>
+                <TouchableOpacity onPress={() => deleteItem(item.id)}>
+                  <Ionicons
+                    name="trash-outline"
+                    size={26}
+                    color={colors.accent}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        ))}
+          ))
+        )}
       </ScrollView>
-
-      {/* ADD EQUIPMENT MODAL */}
-      <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalBox,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Add Equipment
-            </Text>
-
-            <ScrollView>
-              <TextInput
-                placeholder="Name"
-                placeholderTextColor={colors.subtext}
-                style={[
-                  styles.input,
-                  { backgroundColor: colors.bg, color: colors.text },
-                ]}
-                value={name}
-                onChangeText={setName}
-              />
-
-              <TextInput
-                placeholder="Body Part"
-                placeholderTextColor={colors.subtext}
-                style={[
-                  styles.input,
-                  { backgroundColor: colors.bg, color: colors.text },
-                ]}
-                value={bodyPart}
-                onChangeText={setBodyPart}
-              />
-
-              <TextInput
-                placeholder="Type (e.g., Dumbbells, Machine)"
-                placeholderTextColor={colors.subtext}
-                style={[
-                  styles.input,
-                  { backgroundColor: colors.bg, color: colors.text },
-                ]}
-                value={type}
-                onChangeText={setType}
-              />
-
-              <TextInput
-                placeholder="Description"
-                placeholderTextColor={colors.subtext}
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.bg,
-                    color: colors.text,
-                    height: 80,
-                  },
-                ]}
-                value={description}
-                onChangeText={setDescription}
-                multiline
-              />
-
-              <TextInput
-                placeholder="Video URL"
-                placeholderTextColor={colors.subtext}
-                style={[
-                  styles.input,
-                  { backgroundColor: colors.bg, color: colors.text },
-                ]}
-                value={video}
-                onChangeText={setVideo}
-              />
-
-              <TextInput
-                placeholder="Image URL (optional)"
-                placeholderTextColor={colors.subtext}
-                style={[
-                  styles.input,
-                  { backgroundColor: colors.bg, color: colors.text },
-                ]}
-                value={image}
-                onChangeText={setImage}
-              />
-
-              <TouchableOpacity
-                style={[styles.saveButton, { backgroundColor: colors.accent }]}
-                onPress={saveEquipment}
-              >
-                <Text style={[styles.saveText, { color: colors.text }]}>
-                  Save
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={[styles.cancelText, { color: colors.subtext }]}>
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -279,130 +328,65 @@ export default function EquipmentScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
 
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
+  title: { fontSize: 28, fontWeight: "bold", marginBottom: 15 },
 
-  addButton: {
+  searchInput: {
     padding: 12,
     borderRadius: 10,
-    marginTop: 15,
-    alignItems: "center",
-  },
-  addButtonText: {
+    marginBottom: 12,
     fontSize: 16,
-    fontWeight: "bold",
   },
 
-  empty: {
-    textAlign: "center",
-    marginTop: 40,
-  },
-
-  card: {
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 20,
-    flexDirection: "row",
+  categoryButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    marginRight: 10,
     borderWidth: 1,
   },
 
-  image: {
-    width: 90,
-    height: 90,
+  exportButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
     borderRadius: 10,
-    marginRight: 12,
+    marginBottom: 20,
   },
+  exportText: { color: "#fff", fontSize: 16, marginLeft: 10 },
 
-  name: {
-    fontSize: 20,
+  sectionTitle: {
+    fontSize: 22,
     fontWeight: "bold",
-    marginBottom: 6,
-  },
-
-  field: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-
-  value: {
-    fontWeight: "600",
-  },
-
-  description: {
-    marginTop: 4,
+    marginTop: 20,
     marginBottom: 10,
   },
 
-  video: {
-    marginTop: 10,
-    fontWeight: "bold",
+  emptyText: { fontSize: 16, marginTop: 20 },
+
+  card: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
   },
 
-  iconColumn: {
+  cardHeader: {
+    flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginLeft: 10,
   },
 
-  editIcon: {
-    fontSize: 22,
-  },
+  name: { fontSize: 20, fontWeight: "bold", marginBottom: 6 },
+  detail: { fontSize: 14, marginBottom: 4 },
 
-  trashIcon: {
-    fontSize: 22,
-  },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    justifyContent: "center",
-    padding: 20,
-  },
-
-  modalBox: {
-    padding: 20,
-    borderRadius: 12,
-    maxHeight: "90%",
-    borderWidth: 1,
-  },
-
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 15,
-    textAlign: "center",
-  },
-
-  input: {
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 12,
-    borderWidth: 1,
-  },
-
-  saveButton: {
-    padding: 12,
-    borderRadius: 10,
+  row: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
     marginTop: 10,
-    alignItems: "center",
-  },
-  saveText: {
-    fontWeight: "bold",
-  },
-
-  cancelButton: {
-    padding: 12,
-    borderRadius: 10,
-    marginTop: 10,
-    alignItems: "center",
-  },
-  cancelText: {
-    fontSize: 16,
+    gap: 20,
   },
 });
+
 
 
 

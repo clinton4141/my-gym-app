@@ -11,6 +11,8 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import useThemeColors from "../hooks/useThemeColors";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 
 export default function WorkoutHistoryScreen({ navigation }) {
   const colors = useThemeColors();
@@ -146,6 +148,56 @@ export default function WorkoutHistoryScreen({ navigation }) {
     );
   };
 
+  // ⭐ PDF EXPORT FUNCTION
+  const exportPDF = async () => {
+    const html = `
+      <html>
+        <body>
+          <h1>Workout History</h1>
+
+          ${history
+            .map(
+              (workout) => `
+            <h2>${workout.date}</h2>
+            <p><strong>Total Volume:</strong> ${calculateVolume(workout)} kg</p>
+            <p><strong>Exercises:</strong> ${workout.exercises.length}</p>
+
+            <table border="1" style="border-collapse: collapse; width: 100%; margin-bottom: 20px;">
+              <tr>
+                <th>Exercise</th>
+                <th>Set</th>
+                <th>Reps</th>
+                <th>Weight</th>
+              </tr>
+
+              ${workout.exercises
+                .map((ex) =>
+                  ex.sets
+                    .map(
+                      (set, i) => `
+                  <tr>
+                    <td>${ex.name}</td>
+                    <td>${i + 1}</td>
+                    <td>${set.reps}</td>
+                    <td>${set.weight} kg</td>
+                  </tr>
+                `
+                    )
+                    .join("")
+                )
+                .join("")}
+            </table>
+          `
+            )
+            .join("")}
+        </body>
+      </html>
+    `;
+
+    const { uri } = await Print.printToFileAsync({ html });
+    await Sharing.shareAsync(uri);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <ScrollView
@@ -156,12 +208,23 @@ export default function WorkoutHistoryScreen({ navigation }) {
           Workout History
         </Text>
 
+        {/* CSV EXPORT */}
         <TouchableOpacity
           style={[styles.exportButton, { backgroundColor: colors.accent }]}
           onPress={generateCSV}
         >
           <Text style={[styles.exportButtonText, { color: colors.text }]}>
             Export CSV
+          </Text>
+        </TouchableOpacity>
+
+        {/* PDF EXPORT */}
+        <TouchableOpacity
+          style={[styles.exportButton, { backgroundColor: colors.accent }]}
+          onPress={exportPDF}
+        >
+          <Text style={[styles.exportButtonText, { color: colors.text }]}>
+            Export PDF
           </Text>
         </TouchableOpacity>
 

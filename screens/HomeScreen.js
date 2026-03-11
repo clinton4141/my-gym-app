@@ -147,7 +147,7 @@ export default function HomeScreen({ navigation }) {
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 200 }}
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.title, { color: colors.text }]}>
@@ -237,7 +237,7 @@ export default function HomeScreen({ navigation }) {
                   { backgroundColor: colors.card, borderColor: colors.border },
                 ]}
                 onPress={() =>
-                  navigation.navigate("WorkoutFlow", {
+                  navigation.navigate("HomeTab", {
                     screen: "WorkoutDetail",
                     params: { workout: w },
                   })
@@ -355,7 +355,7 @@ export default function HomeScreen({ navigation }) {
               { backgroundColor: colors.accent },
             ]}
             onPress={() =>
-              navigation.navigate("WorkoutFlow", {
+              navigation.navigate("HomeTab", {
                 screen: "StartWorkout",
               })
             }
@@ -371,7 +371,9 @@ export default function HomeScreen({ navigation }) {
               { backgroundColor: colors.accent },
             ]}
             onPress={() =>
-              navigation.navigate("MainTabs", { screen: "History" })
+              navigation.navigate("HistoryTab", {
+                screen: "HistoryHome",
+              })
             }
           >
             <Text style={[styles.actionText, { color: colors.text }]}>
@@ -379,6 +381,7 @@ export default function HomeScreen({ navigation }) {
             </Text>
           </TouchableOpacity>
         </View>
+
       </ScrollView>
     </View>
   );
@@ -464,6 +467,7 @@ const styles = StyleSheet.create({
   trendBar: { width: 30, borderRadius: 6 },
   trendLabel: { fontSize: 12, marginTop: 4 },
 });
+
 
 
 

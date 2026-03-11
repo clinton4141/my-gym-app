@@ -32,7 +32,9 @@ export default function SettingsScreen({ navigation }) {
           styles.item,
           { backgroundColor: colors.card, borderColor: colors.border },
         ]}
-        onPress={() => navigation.navigate("Profile")}
+        onPress={() =>
+          navigation.navigate("SettingsTab", { screen: "Profile" })
+        }
       >
         <Text style={[styles.itemText, { color: colors.text }]}>Profile</Text>
       </TouchableOpacity>
@@ -43,7 +45,9 @@ export default function SettingsScreen({ navigation }) {
           styles.item,
           { backgroundColor: colors.card, borderColor: colors.border },
         ]}
-        onPress={() => navigation.navigate("Notifications")}
+        onPress={() =>
+          navigation.navigate("SettingsTab", { screen: "Notifications" })
+        }
       >
         <Text style={[styles.itemText, { color: colors.text }]}>
           Notifications
@@ -56,7 +60,9 @@ export default function SettingsScreen({ navigation }) {
           styles.item,
           { backgroundColor: colors.card, borderColor: colors.border },
         ]}
-        onPress={() => navigation.navigate("Theme")}
+        onPress={() =>
+          navigation.navigate("SettingsTab", { screen: "Theme" })
+        }
       >
         <Text style={[styles.itemText, { color: colors.text }]}>Theme</Text>
       </TouchableOpacity>
@@ -67,7 +73,9 @@ export default function SettingsScreen({ navigation }) {
           styles.item,
           { backgroundColor: colors.card, borderColor: colors.border },
         ]}
-        onPress={() => navigation.navigate("WorkoutReminder")}
+        onPress={() =>
+          navigation.navigate("SettingsTab", { screen: "WorkoutReminder" })
+        }
       >
         <Text style={[styles.itemText, { color: colors.text }]}>
           Workout Reminder

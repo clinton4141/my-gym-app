@@ -14,7 +14,8 @@
         }
       ],
       "expo-font",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-sharing"
     ],
     "android": {
       "package": "com.clinton41.mygymapp",
