@@ -9,11 +9,17 @@ buildscript {
     classpath('com.android.tools.build:gradle')
     classpath('com.facebook.react:react-native-gradle-plugin')
     classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+    configurations.all {
+    resolutionStrategy {
+        force "com.google.android.gms:play-services-mlkit-barcode-scanning:18.2.0"
+    }
+}
   }
 }
 
 allprojects {
   repositories {
+    maven { url "https://maven.google.com" }
     google()
     mavenCentral()
     maven { url 'https://www.jitpack.io' }

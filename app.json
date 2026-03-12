@@ -5,19 +5,15 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-
     "userInterfaceStyle": "dark",
-
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
-
     "assetBundlePatterns": ["**/*"],
-
     "android": {
-      "googleServicesFile": "./android/app/google-services.json",
+      "googleServicesFile": "android/app/google-services.json",
       "useNextNotificationsApi": true,
       "package": "com.clinton41.mygymapp",
       "permissions": [
@@ -25,6 +21,16 @@
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
       ]
-    }
+    },
+    "plugins": [
+      [
+        "expo-barcode-scanner",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera",
+          "barcodeScannerVersion": "play-services-mlkit-barcode-scanning:18.2.0"
+        }
+      ],
+      "expo-sqlite"
+    ]
   }
 }
