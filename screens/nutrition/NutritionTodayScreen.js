@@ -22,7 +22,7 @@ export default function NutritionTodayScreen({ navigation }) {
       style={styles.container}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{
-        paddingBottom: 140,   // ensures bottom bar is visible
+        paddingBottom: 140,
         flexGrow: 1,
       }}
     >
@@ -52,7 +52,7 @@ export default function NutritionTodayScreen({ navigation }) {
           <TouchableOpacity
             key={meal}
             style={styles.mealCard}
-            onPress={() => navigation.navigate("LogMeal", { mealType: meal })}
+            onPress={() => navigation.navigate("AddMeal", { mealType: meal })}
           >
             <View>
               <Text style={styles.mealTitle}>{meal}</Text>
@@ -73,22 +73,28 @@ export default function NutritionTodayScreen({ navigation }) {
         );
       })}
 
-      {/* RESTORED 4‑OPTION GREY BOTTOM BAR */}
+      {/* 4‑option grey bottom bar */}
       <View style={styles.bottomBar}>
         <TouchableOpacity
           style={styles.bottomItem}
-          onPress={() => navigation.navigate("LogMeal")}
+          onPress={() => navigation.navigate("AddMeal")}
         >
           <Ionicons name="add" size={22} color="white" />
           <Text style={styles.bottomText}>Add Meal</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.bottomItem}>
+        <TouchableOpacity
+          style={styles.bottomItem}
+          onPress={() => navigation.navigate("Water")}
+        >
           <Ionicons name="water" size={22} color="white" />
           <Text style={styles.bottomText}>Water</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.bottomItem}>
+        <TouchableOpacity
+          style={styles.bottomItem}
+          onPress={() => navigation.navigate("BarcodeScanner")}
+        >
           <Ionicons name="barcode" size={22} color="white" />
           <Text style={styles.bottomText}>Scan</Text>
         </TouchableOpacity>
@@ -186,7 +192,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  /* 4‑option grey bottom bar */
   bottomBar: {
     backgroundColor: "#222",
     paddingVertical: 14,
@@ -207,4 +212,3 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
 });
-

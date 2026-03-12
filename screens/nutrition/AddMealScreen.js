@@ -1,10 +1,12 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React from "react";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 
-export default function AddMealScreen({ navigation }) {
+export default function AddMealScreen({ navigation, route }) {
+  const mealType = route?.params?.mealType || "Meal";
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Add Meal</Text>
+      <Text style={styles.title}>Add {mealType}</Text>
 
       <TouchableOpacity
         style={styles.button}
@@ -19,24 +21,24 @@ export default function AddMealScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111',
+    backgroundColor: "#111",
     padding: 20,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   title: {
-    color: '#fff',
+    color: "white",
     fontSize: 28,
     marginBottom: 20,
   },
   button: {
-    backgroundColor: '#ff7f00',
+    backgroundColor: "#ff7f00",
     padding: 15,
     borderRadius: 10,
     marginTop: 20,
   },
   buttonText: {
-    color: '#000',
+    color: "#000",
     fontSize: 18,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });

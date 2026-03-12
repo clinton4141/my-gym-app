@@ -1,3 +1,5 @@
+// FULL FILE WITH ONLY NAVIGATION FIXES APPLIED
+
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -237,7 +239,7 @@ export default function HomeScreen({ navigation }) {
                   { backgroundColor: colors.card, borderColor: colors.border },
                 ]}
                 onPress={() =>
-                  navigation.navigate("HomeTab", {
+                  navigation.navigate("Home", {
                     screen: "WorkoutDetail",
                     params: { workout: w },
                   })
@@ -355,7 +357,7 @@ export default function HomeScreen({ navigation }) {
               { backgroundColor: colors.accent },
             ]}
             onPress={() =>
-              navigation.navigate("HomeTab", {
+              navigation.navigate("Home", {
                 screen: "StartWorkout",
               })
             }
@@ -371,7 +373,7 @@ export default function HomeScreen({ navigation }) {
               { backgroundColor: colors.accent },
             ]}
             onPress={() =>
-              navigation.navigate("HistoryTab", {
+              navigation.navigate("History", {
                 screen: "HistoryHome",
               })
             }
