@@ -54,9 +54,7 @@ export default function ProfileScreen({ navigation }) {
 
         <TouchableOpacity
           style={[styles.editButton, { backgroundColor: colors.accent }]}
-          onPress={() =>
-            navigation.navigate("SettingsTab", { screen: "EditProfile" })
-          }
+          onPress={() => navigation.navigate("EditProfile")}
         >
           <Text style={styles.editButtonText}>Edit</Text>
         </TouchableOpacity>
@@ -135,7 +133,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 40,   // matches EditProfileScreen style
+    paddingTop: 40,
     paddingBottom: 10,
   },
 

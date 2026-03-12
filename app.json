@@ -5,31 +5,26 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "plugins": [
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png"
-        }
-      ],
-      "expo-font",
-      "@react-native-community/datetimepicker",
-      "expo-sharing"
-    ],
-    "android": {
-      "package": "com.clinton41.mygymapp",
-      "googleServicesFile": "./google-services.json",
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.VIBRATE",
-        "android.permission.POST_NOTIFICATIONS"
-      ]
+
+    "userInterfaceStyle": "dark",
+
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
     },
-    "extra": {
-      "eas": {
-        "projectId": "75813872-a062-40e4-8802-8fec8302ff4b"
-      }
+
+    "assetBundlePatterns": ["**/*"],
+
+    "android": {
+      "googleServicesFile": "./android/app/google-services.json",
+      "useNextNotificationsApi": true,
+      "package": "com.clinton41.mygymapp",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     }
   }
 }
